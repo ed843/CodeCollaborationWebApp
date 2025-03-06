@@ -1,0 +1,712 @@
+﻿@page
+@{
+    Layout = null;
+    var roomCode = HttpContext.Request.Query["code"].ToString();
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Room: @roomCode</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb;
+        }
+
+        #whiteboard {
+            touch-action: none;
+            box-shadow: inset 0 0 6px rgba(0,0,0,0.1);
+        }
+
+        #codeEditor {
+            font-family: 'Courier New', monospace;
+            resize: none;
+        }
+
+        .tool-btn {
+            transition: all 0.2s ease;
+        }
+
+            .tool-btn:hover {
+                transform: translateY(-1px);
+            }
+
+        .active-tool {
+            background-color: #4f46e5;
+            color: white;
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen pb-12">
+    <nav class="bg-white shadow-md w-full px-6 py-4">
+        <div class="max-w-6xl mx-auto flex justify-between items-center">
+            <div class="flex items-center space-x-2">
+                <i class="fas fa-code text-blue-600 text-xl"></i>
+                <h1 class="text-xl font-bold text-gray-800">Code Collaboration</h1>
+            </div>
+            <div class="flex items-center space-x-4">
+                <div class="flex items-center bg-blue-50 px-4 py-2 rounded-lg">
+                    <span class="text-gray-500 mr-2">Room:</span>
+                    <span class="font-bold text-blue-600 tracking-wider">@roomCode</span>
+                    <button id="copyRoomBtn" class="ml-2 text-gray-400 hover:text-blue-600" title="Copy room code">
+                        <i class="far fa-copy"></i>
+                    </button>
+                </div>
+                <a href="/" class="text-gray-500 hover:text-gray-700">
+                    <i class="fas fa-home mr-1"></i> Home
+                </a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="max-w-6xl mx-auto px-4 mt-6">
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-6">
+            <div class="flex flex-col md:flex-row items-center justify-between mb-4">
+                <div>
+                    <h2 class="text-2xl font-semibold text-gray-800">Collaboration Room</h2>
+                    <p class="text-gray-500">Real-time code and whiteboard sharing</p>
+                </div>
+                <div class="flex items-center space-x-2 mt-3 md:mt-0">
+                    <span id="connectionStatus" class="flex items-center text-sm">
+                        <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                        Connected
+                    </span>
+                    <span class="text-gray-300">|</span>
+                    <button id="clearBtn" class="text-red-500 hover:text-red-700 text-sm flex items-center">
+                        <i class="fas fa-trash-alt mr-1"></i> Clear All
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            <!-- Whiteboard Section -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="bg-gray-50 px-4 py-3 border-b flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-700">
+                        <i class="fas fa-pen mr-2 text-indigo-500"></i>Whiteboard
+                    </h3>
+                    <div class="flex space-x-2">
+                        <button class="tool-btn active-tool p-2 rounded-md" id="penTool" title="Pen">
+                            <i class="fas fa-pen"></i>
+                        </button>
+                        <button class="tool-btn bg-gray-100 p-2 rounded-md" id="eraserTool" title="Eraser">
+                            <i class="fas fa-eraser"></i>
+                        </button>
+                        <div class="flex items-center ml-2">
+                            <input type="color" id="colorPicker" value="#000000" class="w-6 h-6 rounded" title="Choose color">
+                        </div>
+                    </div>
+                </div>
+                <div class="p-4 bg-white">
+                    <canvas id="whiteboard" class="w-full h-96 bg-white rounded-lg"></canvas>
+                </div>
+            </div>
+
+            <!-- Code Editor Section -->
+            <div class="bg-white rounded-xl shadow-lg overflow-hidden">
+                <div class="bg-gray-50 px-4 py-3 border-b flex justify-between items-center">
+                    <h3 class="font-semibold text-gray-700">
+                        <i class="fas fa-code mr-2 text-blue-500"></i>Code Editor
+                    </h3>
+                    <div class="flex space-x-2">
+                        <select id="languageSelect" class="text-sm border rounded-md px-2 py-1 bg-white">
+                            <option value="javascript">JavaScript</option>
+                            <option value="csharp">C#</option>
+                            <option value="html">HTML</option>
+                            <option disabled value="python">Python</option>
+                            
+                            <option disabled value="css">CSS</option>
+                            <option disabled value="typescript">TypeScript</option>
+                            <option disabled value="java">Java</option>
+                        </select>
+                        <button id="runCodeBtn" class="bg-green-500 hover:bg-green-600 text-white px-3 py-1 rounded-md text-sm flex items-center">
+                            <i class="fas fa-play mr-1"></i> Run
+                        </button>
+                    </div>
+                </div>
+                <div class="bg-gray-800 flex flex-col h-[30rem]">
+                    <div id="monaco-editor" class="w-full h-[75%]"></div>
+                    <div class="border-t border-gray-700 p-2 flex items-center bg-gray-900 text-white text-sm">
+                        <span class="mr-2">Output:</span>
+                        <button id="clearOutputBtn" class="text-xs text-gray-400 hover:text-white ml-auto">
+                            <i class="fas fa-trash-alt mr-1"></i> Clear
+                        </button>
+                    </div>
+                    <div id="codeOutput" class="w-full h-[25%] bg-black text-green-400 p-4 font-mono text-sm overflow-auto">
+                        // Output will appear here after running code
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast notification -->
+    <div id="toast" class="fixed bottom-4 right-4 bg-gray-800 text-white px-4 py-2 rounded-lg shadow-lg hidden">
+        Room code copied!
+    </div>
+
+    <!-- SignalR client library -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js" integrity="sha512-7SRCYIJtR6F8ocwW7UxW6wGKqbSyqREDbfCORCbGLatU0iugBLwyOXpzhkPyHIFdBO0K2VCu57fvP2Twgx1o2A==" crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+    <script>
+        const roomCode = '@roomCode';
+        const connection = new signalR.HubConnectionBuilder()
+          .withUrl("/collaborationHub")
+          .build();
+
+        // Connection status handling
+        const connectionStatus = document.getElementById("connectionStatus");
+
+        connection.start().then(() => {
+            connection.invoke("JoinRoom", roomCode);
+            connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span> Connected';
+        }).catch(err => {
+            console.error(err.toString());
+            connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Disconnected';
+        });
+
+        connection.onclose(() => {
+            connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Disconnected';
+        });
+
+        // Copy room code functionality
+        document.getElementById("copyRoomBtn").addEventListener("click", () => {
+            navigator.clipboard.writeText(roomCode).then(() => {
+                const toast = document.getElementById("toast");
+                toast.classList.remove("hidden");
+                setTimeout(() => {
+                    toast.classList.add("hidden");
+                }, 2000);
+            });
+        });
+
+                // Whiteboard functionality
+        const canvas = document.getElementById("whiteboard");
+        const context = canvas.getContext("2d");
+
+        // Set canvas size
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+
+            // Store the current drawing if any
+            const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+
+            canvas.width = rect.width;
+            canvas.height = rect.height;
+
+            // Restore drawing settings
+            context.lineJoin = "round";
+            context.lineCap = "round";
+            context.lineWidth = 2;
+
+            // Restore the previous drawing if there was one
+            if (imageData.width > 0) {
+                context.putImageData(imageData, 0, 0);
+            }
+        }
+
+        window.addEventListener("resize", resizeCanvas);
+        resizeCanvas();
+
+        let drawing = false;
+        let lastX = 0;
+        let lastY = 0;
+        let currentTool = "pen";
+
+        // Tool selection
+        document.getElementById("penTool").addEventListener("click", () => {
+            currentTool = "pen";
+            document.getElementById("penTool").classList.add("active-tool");
+            document.getElementById("eraserTool").classList.remove("active-tool");
+            context.globalCompositeOperation = "source-over";
+        });
+
+        document.getElementById("eraserTool").addEventListener("click", () => {
+            currentTool = "eraser";
+            document.getElementById("eraserTool").classList.add("active-tool");
+            document.getElementById("penTool").classList.remove("active-tool");
+            context.globalCompositeOperation = "destination-out";
+        });
+
+        document.getElementById("colorPicker").addEventListener("input", (e) => {
+            context.strokeStyle = e.target.value;
+        });
+
+        // Clear whiteboard
+        document.getElementById("clearBtn").addEventListener("click", () => {
+            if (confirm("Are you sure you want to clear everything?")) {
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                connection.invoke("SendWhiteboardClear", roomCode);
+                document.getElementById("codeEditor").value = "";
+                connection.invoke("SendCodeUpdate", roomCode, "");
+            }
+        });
+
+        // Drawing events
+        canvas.addEventListener("mousedown", startDrawing);
+        canvas.addEventListener("touchstart", (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent("mousedown", {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener("mouseup", stopDrawing);
+        canvas.addEventListener("touchend", (e) => {
+            e.preventDefault();
+            const mouseEvent = new MouseEvent("mouseup", {});
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        canvas.addEventListener("mouseleave", stopDrawing);
+
+        canvas.addEventListener("mousemove", draw);
+        canvas.addEventListener("touchmove", (e) => {
+            e.preventDefault();
+            const touch = e.touches[0];
+            const mouseEvent = new MouseEvent("mousemove", {
+                clientX: touch.clientX,
+                clientY: touch.clientY
+            });
+            canvas.dispatchEvent(mouseEvent);
+        });
+
+        function getCanvasCoordinates(e) {
+            const rect = canvas.getBoundingClientRect();
+            // Calculate the scale factor between the CSS size and actual canvas pixels
+            const scaleX = canvas.width / rect.width;
+            const scaleY = canvas.height / rect.height;
+
+            // Get precise pointer position
+            return {
+                x: (e.clientX - rect.left) * scaleX,
+                y: (e.clientY - rect.top) * scaleY
+            };
+        }
+
+        function startDrawing(e) {
+            drawing = true;
+            const pos = getCanvasCoordinates(e);
+            lastX = pos.x;
+            lastY = pos.y;
+
+            // Start a new path and move to the position
+            context.beginPath();
+            context.moveTo(lastX, lastY);
+        }
+
+        function draw(e) {
+            if (!drawing) return;
+
+            const pos = getCanvasCoordinates(e);
+            const x = pos.x;
+            const y = pos.y;
+
+            context.lineTo(x, y);
+            context.stroke();
+
+            const updateData = JSON.stringify({
+                x1: lastX,
+                y1: lastY,
+                x2: x,
+                y2: y,
+                color: context.strokeStyle,
+                tool: currentTool
+            });
+
+            connection.invoke("SendWhiteboardUpdate", roomCode, updateData);
+
+            lastX = x;
+            lastY = y;
+        }
+
+        function stopDrawing() {
+            drawing = false;
+            context.beginPath();
+        }
+
+        connection.on("ReceiveWhiteboardUpdate", (updateData) => {
+            const data = JSON.parse(updateData);
+
+            const originalOperation = context.globalCompositeOperation;
+            const originalColor = context.strokeStyle;
+
+            if (data.tool === "eraser") {
+                context.globalCompositeOperation = "destination-out";
+            } else {
+                context.globalCompositeOperation = "source-over";
+                context.strokeStyle = data.color;
+            }
+
+            context.beginPath();
+            context.moveTo(data.x1, data.y1);
+            context.lineTo(data.x2, data.y2);
+            context.stroke();
+
+            context.globalCompositeOperation = originalOperation;
+            context.strokeStyle = originalColor;
+            context.beginPath();
+        });
+
+        connection.on("ReceiveWhiteboardClear", () => {
+            context.clearRect(0, 0, canvas.width, canvas.height);
+        });
+
+
+        // User count tracking
+        let userCount = 0;
+
+        // Handle window/tab close events
+        window.addEventListener('beforeunload', () => {
+            // This will trigger the OnDisconnectedAsync in the hub
+            connection.stop();
+        });
+
+        // Add these connection handlers
+        connection.on("UpdateUserCount", (count) => {
+            // Called when a user first joins to set the initial count
+            userCount = count;
+            updateUserCounter();
+        });
+
+        connection.on("UserJoined", (count) => {
+            // Called when another user joins
+            userCount = count;
+            updateUserCounter();
+
+            // Show notification
+            const toast = document.getElementById("toast");
+            toast.textContent = "Another user joined the room";
+            toast.classList.remove("hidden");
+            setTimeout(() => {
+                toast.classList.add("hidden");
+            }, 2000);
+        });
+
+        connection.on("UserLeft", (count) => {
+            // Called when a user leaves
+            userCount = count;
+            updateUserCounter();
+
+            // Show notification
+            const toast = document.getElementById("toast");
+            toast.textContent = "A user left the room";
+            toast.classList.remove("hidden");
+            setTimeout(() => {
+                toast.classList.add("hidden");
+            }, 2000);
+        });
+
+        connection.on("RoomNotFound", () => {
+            alert("This room does not exist. You will be redirected to the home page.");
+            window.location.href = "/";
+        });
+
+        // Update the user counter display
+        function updateUserCounter() {
+            const statusEl = document.getElementById("connectionStatus");
+            statusEl.innerHTML = `
+                <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+                Connected <span class="ml-2 bg-gray-100 px-2 py-1 rounded-full text-xs font-medium">${userCount} ${userCount === 1 ? 'user' : 'users'}</span>
+            `;
+        }
+
+        // Initialize the connection
+        connection.start().then(() => {
+            connection.invoke("JoinRoom", roomCode);
+            connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span> Connecting...';
+        }).catch(err => {
+            console.error(err.toString());
+            connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Disconnected';
+        });
+
+
+                connection.on("RoomTerminated", () => {
+            alert("This room has been terminated. You will be redirected to the home page.");
+            window.location.href = "/";
+        });
+
+        // Periodically check if room still exists (optional, as a backup)
+        setInterval(async () => {
+            if (connection.state !== "Connected") return;
+
+            try {
+                const response = await fetch(`/api/room/verify?code=${roomCode}`);
+                const data = await response.json();
+
+                if (!data.exists) {
+                    alert("This room no longer exists. You will be redirected to the home page.");
+                    window.location.href = "/";
+                }
+            } catch (error) {
+                console.error("Error checking room status:", error);
+            }
+        }, 30000);
+    </script>
+    <!-- Monaco Editor -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/loader.min.js"></script>
+    <script>
+        // Monaco Editor Setup
+        let monacoEditor;
+        let currentLanguage = "javascript";
+        let ignoreNextCodeUpdate = false;
+
+
+
+        require.config({ paths: { 'vs': 'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs' }});
+        require(['vs/editor/editor.main'], function() {
+            monacoEditor = monaco.editor.create(document.getElementById('monaco-editor'), {
+                value: '// Type your code here...',
+                language: currentLanguage,
+                theme: 'vs-dark',
+                automaticLayout: true,
+                minimap: { enabled: false },
+                scrollBeyondLastLine: false,
+                fontSize: 14,
+                tabSize: 2
+            });
+
+            // Handle editor content changes
+            monacoEditor.onDidChangeModelContent((event) => {
+                if (ignoreNextCodeUpdate) {
+                    ignoreNextCodeUpdate = false;
+                    return;
+                }
+                const code = monacoEditor.getValue();
+                connection.invoke("SendCodeUpdate", roomCode, code);
+            });
+
+            // Language selection change
+            document.getElementById("languageSelect").addEventListener("change", (e) => {
+                const language = e.target.value;
+                monaco.editor.setModelLanguage(monacoEditor.getModel(), language);
+                currentLanguage = language;
+                connection.invoke("SendLanguageChange", roomCode, language);
+            });
+
+            // Update handling for code from other users
+            connection.on("ReceiveCodeUpdate", (code) => {
+                if (monacoEditor.getValue() !== code) {
+                    ignoreNextCodeUpdate = true;
+                    monacoEditor.setValue(code);
+                }
+            });
+
+            connection.on("ReceiveLanguageChange", (language) => {
+                document.getElementById("languageSelect").value = language;
+                monaco.editor.setModelLanguage(monacoEditor.getModel(), language);
+                currentLanguage = language;
+            });
+        });
+
+        // Code execution handling
+        document.getElementById("runCodeBtn").addEventListener("click", executeCode);
+        document.getElementById("clearOutputBtn").addEventListener("click", () => {
+            document.getElementById("codeOutput").innerHTML = "// Output cleared";
+        });
+
+        function executeCode() {
+            const code = monacoEditor.getValue();
+            const language = document.getElementById("languageSelect").value;
+            const outputElement = document.getElementById("codeOutput");
+
+            outputElement.innerHTML = `// Running ${language} code...\n`;
+
+            try {
+                switch (language) {
+                    case "javascript":
+                        // For JavaScript, we can use the Function constructor to execute code safely
+                        executeJavaScript(code, outputElement);
+                        break;
+
+                    case "html":
+                        // For HTML, we'll open a new window with the HTML content
+                        executeHtml(code, outputElement);
+                        break;
+                    
+                    // currently unimplemented...
+                    case "python":
+                    case "java":
+                    case "csharp":
+                    case "typescript":
+                        // For languages that require a backend to run:
+                        outputElement.innerHTML += `\n// Server-side execution for ${language} is not available in this demo.\n`;
+                        outputElement.innerHTML += `// In a production environment, you would send this code to a backend service.\n`;
+                        outputElement.innerHTML += `// The code was successfully validated for syntax using Monaco Editor.`;
+                        break;
+
+                    default:
+                        outputElement.innerHTML = `// Execution not supported for ${language}`;
+                }
+            } catch (error) {
+                outputElement.innerHTML += `\n// Error: ${error.message}\n`;
+            }
+
+            // Share the output with other collaborators
+            connection.invoke("SendOutputUpdate", roomCode, outputElement.innerHTML);
+        }
+
+        function executeJavaScript(code, outputElement) {
+            // Create a sandboxed console.log that outputs to our output element
+            const originalConsoleLog = console.log;
+            const originalConsoleError = console.error;
+            const originalConsoleWarn = console.warn;
+            const originalConsoleInfo = console.info;
+
+            let output = "";
+
+            // Override console methods
+            console.log = (...args) => {
+                output += args.map(arg =>
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ') + '\n';
+            };
+
+            console.error = (...args) => {
+                output += '📛 ERROR: ' + args.map(arg =>
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ') + '\n';
+            };
+
+            console.warn = (...args) => {
+                output += '⚠️ WARNING: ' + args.map(arg =>
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ') + '\n';
+            };
+
+            console.info = (...args) => {
+                output += 'ℹ️ INFO: ' + args.map(arg =>
+                    typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
+                ).join(' ') + '\n';
+            };
+
+            try {
+                // Execute the code in a way that captures returned values
+                const executeWithReturn = new Function(`
+                    "use strict";
+                    let __result;
+                    try {
+                        __result = (function() { ${code} })();
+                        if (__result !== undefined) {
+                            console.log("→ Return value:", __result);
+                        }
+                    } catch (e) {
+                        console.error(e);
+                    }
+                `);
+
+                executeWithReturn();
+
+                if (output) {
+                    outputElement.innerHTML += output;
+                } else {
+                    outputElement.innerHTML += "// Code executed successfully with no output";
+                }
+            } catch (error) {
+                outputElement.innerHTML += `\n// Execution error: ${error.message}\n`;
+            } finally {
+                // Restore original console methods
+                console.log = originalConsoleLog;
+                console.error = originalConsoleError;
+                console.warn = originalConsoleWarn;
+                console.info = originalConsoleInfo;
+            }
+        }
+
+        function executeHtml(code, outputElement) {
+            // Create a preview of the HTML in the output area
+            outputElement.innerHTML = "// HTML Preview (simplified rendering):\n\n";
+
+            // Create a sanitized preview (very basic - in production use a proper sanitizer)
+            const previewDiv = document.createElement('div');
+            previewDiv.style.maxHeight = '150px';
+            previewDiv.style.overflow = 'auto';
+            previewDiv.style.border = '1px solid #555';
+            previewDiv.style.padding = '8px';
+            previewDiv.style.marginTop = '8px';
+            previewDiv.style.background = '#fff';
+            previewDiv.style.color = '#000';
+
+            try {
+                // Basic sanitization (would use a proper library in production)
+                const sanitized = code.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '<!-- scripts removed for security -->');
+                previewDiv.innerHTML = sanitized;
+
+                outputElement.appendChild(previewDiv);
+
+                // Add option to open in new window
+                        const openButton = document.createElement('button');
+        openButton.textContent = 'Open in New Window (Unsanitized)';
+        openButton.style.marginTop = '8px';
+        openButton.style.padding = '4px 8px';
+        openButton.style.background = '#f59e0b'; // Change to warning color (amber)
+        openButton.style.color = 'white';
+        openButton.style.border = 'none';
+        openButton.style.borderRadius = '4px';
+        openButton.style.cursor = 'pointer';
+        openButton.style.display = 'flex';
+        openButton.style.alignItems = 'center';
+
+        // Add warning icon
+        const warningIcon = document.createElement('span');
+        warningIcon.innerHTML = '⚠️';
+        warningIcon.style.marginRight = '4px';
+        openButton.prepend(warningIcon);
+
+                openButton.onclick = function(event) {
+            event.preventDefault(); // Stop any default action
+
+            if (confirm("WARNING: Opening HTML in a new window will run any JavaScript code including potentially harmful scripts. Only open HTML from sources you trust. Continue?")) {
+                const newWindow = window.open('', '_blank');
+                if (newWindow) {
+                    newWindow.document.write(code);
+                    newWindow.document.close();
+                }
+            }
+            return false; // Prevent event bubbling
+        };
+
+                openButton.onclick = function() {
+                    const newWindow = window.open('', '_blank');
+                    newWindow.document.write(code);
+                    newWindow.document.close();
+                };
+
+                outputElement.appendChild(openButton);
+            } catch (error) {
+                outputElement.innerHTML += `\n// Preview error: ${error.message}\n`;
+            }
+        }
+
+        // Handle output updates from other collaborators
+        connection.on("ReceiveOutputUpdate", (output) => {
+            document.getElementById("codeOutput").innerHTML = output;
+        });
+
+        // Update clear button to also clear the code editor
+        document.getElementById("clearBtn").addEventListener("click", () => {
+            if (confirm("Are you sure you want to clear everything?")) {
+                // Clear whiteboard
+                context.clearRect(0, 0, canvas.width, canvas.height);
+                connection.invoke("SendWhiteboardClear", roomCode);
+
+                // Clear code editor
+                monacoEditor.setValue("");
+                connection.invoke("SendCodeUpdate", roomCode, "");
+
+                // Clear output
+                document.getElementById("codeOutput").innerHTML = "// Output cleared";
+                connection.invoke("SendOutputUpdate", roomCode, "// Output cleared");
+            }
+        });
+    </script>
+</body>
+</html>

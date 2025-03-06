@@ -1,0 +1,151 @@
+﻿@page
+@{
+    Layout = null;
+}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Collaboration App - Home</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+    <style>
+
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f9fafb;
+        }
+
+        .room-input {
+            transition: all 0.3s ease;
+        }
+
+            .room-input:focus {
+                box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+            }
+
+        .btn-primary {
+            transition: all 0.2s ease;
+        }
+
+            .btn-primary:hover {
+                transform: translateY(-2px);
+            }
+
+        .btn-success:hover {
+            transform: translateY(-1px);
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-50 min-h-screen flex items-center justify-center">
+    <div class="max-w-md w-full p-8 bg-white rounded-xl shadow-lg">
+        <div class="text-center">
+            <div class="mb-6">
+                <i class="fas fa-code text-blue-600 text-4xl mb-2"></i>
+                <h1 class="text-3xl font-bold text-gray-800 mb-2">Code Collaboration</h1>
+                <p class="text-gray-500 mb-6">Review, interview, and collaborate in real-time</p>
+            </div>
+
+            <button id="createRoomBtn" class="btn-primary w-full py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg flex items-center justify-center">
+                <i class="fas fa-plus-circle mr-2"></i>
+                Create New Room
+            </button>
+
+            <div class="relative flex items-center my-8">
+                <div class="flex-grow border-t border-gray-200"></div>
+                <span class="flex-shrink mx-4 text-gray-400">or</span>
+                <div class="flex-grow border-t border-gray-200"></div>
+            </div>
+
+            <h2 class="text-xl font-semibold text-gray-700 mb-4">Join Existing Room</h2>
+
+            <div class="flex items-center mb-4">
+                <input type="text" id="roomCodeInput" class="room-input w-full rounded-l-lg p-3 border border-gray-300 focus:outline-none focus:border-blue-500 bg-gray-50 text-center uppercase font-medium tracking-wider" placeholder="5-LETTER CODE" maxlength="5" />
+                <button id="joinRoomBtn" class="btn-success bg-green-600 hover:bg-green-700 text-white px-4 py-3 rounded-r-lg">
+                    <i class="fas fa-arrow-right"></i>
+                </button>
+            </div>
+
+            <p class="text-xs text-gray-400 mt-6">
+                Please note: This is a demonstration site with limited security measures.
+                Any data shared in rooms is not encrypted and should be considered public.
+                We recommend not sharing sensitive information.
+            </p>
+        </div>
+    </div>
+
+    <script>
+                document.getElementById('createRoomBtn').addEventListener('click', async () => {
+                    // Add loading state
+                    const btn = document.getElementById('createRoomBtn');
+                    const originalText = btn.innerHTML;
+                    btn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
+                    btn.disabled = true;
+
+                    try {
+                        const response = await fetch('/api/room/create');
+                        const data = await response.json();
+                        window.location.href = `/Room?code=${data.roomCode}`;
+                    } catch (error) {
+                        btn.innerHTML = originalText;
+                        btn.disabled = false;
+                        alert('Failed to create room. Please try again.');
+                    }
+                });
+
+                        document.getElementById('joinRoomBtn').addEventListener('click', async () => {
+                    const code = document.getElementById('roomCodeInput').value.toUpperCase();
+                    if(code.length === 5){
+                        // Add loading state
+                        const btn = document.getElementById('joinRoomBtn');
+                        const originalContent = btn.innerHTML;
+                        btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+                        btn.disabled = true;
+
+                        try {
+                            // Check if room exists before navigating
+                            const response = await fetch(`/api/room/verify?code=${code}`);
+                            const data = await response.json();
+
+                            if (data.exists) {
+                                window.location.href = `/Room?code=${code}`;
+                            } else {
+                                document.getElementById('roomCodeInput').classList.add('border-red-500');
+                                setTimeout(() => {
+                                    document.getElementById('roomCodeInput').classList.remove('border-red-500');
+                                }, 2000);
+                                alert('Room not found. Please check the code and try again.');
+                            }
+                        } catch (error) {
+                            alert('Error verifying room. Please try again.');
+                        } finally {
+                            btn.innerHTML = originalContent;
+                            btn.disabled = false;
+                        }
+                    } else {
+                        document.getElementById('roomCodeInput').classList.add('border-red-500');
+                        setTimeout(() => {
+                            document.getElementById('roomCodeInput').classList.remove('border-red-500');
+                        }, 2000);
+                        alert('Please enter a valid 5-letter code.');
+                    }
+                });
+
+                // Also update the keypress event handler to match
+                document.getElementById('roomCodeInput').addEventListener('keypress', (e) => {
+                    if (e.key === 'Enter') {
+                        document.getElementById('joinRoomBtn').click();
+                    }
+                });
+
+        // Also update the keypress event handler to match
+        document.getElementById('roomCodeInput').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                document.getElementById('joinRoomBtn').click();
+            }
+        });
+    </script>
+</body>
+</html>
