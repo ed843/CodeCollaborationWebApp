@@ -1,5 +1,7 @@
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
 
+@import "tailwindcss";
+
 html {
   font-size: 14px;
 }
@@ -21,4 +23,29 @@ html {
 
 body {
   margin-bottom: 60px;
+}
+
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #f9fafb;
+}
+
+.room-input {
+    transition: all 0.3s ease;
+}
+
+    .room-input:focus {
+        box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.5);
+    }
+
+.btn-primary {
+    transition: all 0.2s ease;
+}
+
+    .btn-primary:hover {
+        transform: translateY(-2px);
+    }
+
+.btn-success:hover {
+    transform: translateY(-1px);
 }

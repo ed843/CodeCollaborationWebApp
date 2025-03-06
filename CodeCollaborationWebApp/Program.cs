@@ -10,6 +10,7 @@ builder.Services.AddRazorPages();
 builder.Services.AddControllers();
 builder.Services.AddSignalR();
 
+// Add the RoomService as a singleton
 builder.Services.AddSingleton<IRoomService, RoomService>();
 
 var app = builder.Build();
@@ -19,6 +20,8 @@ app.UseRouting();
 
 app.MapRazorPages();
 app.MapControllers();
+
+// Map the SignalR hub
 app.MapHub<CollaborationHub>("/collaborationHub");
 
 app.Run();

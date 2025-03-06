@@ -1,23 +1,99 @@
 ﻿namespace CodeCollaborationWebApp
 {
+    /// <summary>
+    ///     This service manages the creation and tracking of rooms, as well as the association of users with rooms.
+    /// </summary>
     public interface IRoomService
     {
+        /// <summary>
+        ///     Creates a new room with a room code
+        /// </summary>
+        /// <returns>
+        ///     The room code of the newly created room
+        /// </returns>
         string CreateRoom();
+
+        /// <summary>
+        ///     Checks if a room with the given code exists
+        /// </summary>
+        /// <param name="code">
+        ///     The room code to check
+        /// </param>
+        /// <returns>
+        ///     <c>true</c> if the room exists, <c>false</c> otherwise
+        /// </returns>
         bool RoomExists(string code);
+
+        /// <summary>
+        ///     Adds a user to a room
+        /// </summary>
+        /// <param name="roomCode">
+        ///     The room code to add the user to
+        /// </param>
+        /// <param name="connectionId">
+        ///     The connection ID of the user to add
+        /// </param>
         void AddUserToRoom(string roomCode, string connectionId);
+
+        /// <summary>
+        /// Removes a user from a room
+        /// </summary>
+        /// <param name="connectionId">
+        /// The connection ID of the user to remove
+        /// </param>
         void RemoveUserFromRoom(string connectionId);
+
+        /// <summary>
+        /// Checks if a room has no users
+        /// </summary>
+        /// <param name="roomCode">
+        /// The room code to check
+        /// </param>
+        /// <returns>
+        /// <c>true</c> if the room is empty, <c>false</c> otherwise
+        /// </returns>
         bool IsRoomEmpty(string roomCode);
+
+        /// <summary>
+        /// Gets the number of users in a room
+        /// </summary>
+        /// <param name="roomCode">
+        /// The room code to check
+        /// </param>
+        /// <returns>
+        /// The number of users in the room, or <c>0</c> if the room doesn't exist
+        /// </returns>
         int GetRoomUserCount(string roomCode);
-        string GetUserRoom(string connectionId);
+
+        /// <summary>
+        ///     Gets the room that a user is in
+        /// </summary>
+        /// <param name="connectionId">
+        ///     The connection ID of the user
+        /// </param>
+        /// <returns>
+        ///     The room code that the user is in, or <c>null</c> if the user is not in a room
+        /// </returns>
+        string? GetUserRoom(string connectionId);
     }
 
     public class RoomService : IRoomService
     {
-        // In-memory storage for active rooms
+        /// <summary>
+        ///    A dictionary of active rooms, with the room code as the key and a set of connection IDs as the value
+        /// </summary>
         private static readonly Dictionary<string, HashSet<string>> _activeRooms = new Dictionary<string, HashSet<string>>();
-        // Track which room a connection belongs to
+        /// <summary>
+        ///   A dictionary mapping connection IDs to room codes
+        /// </summary>
         private static readonly Dictionary<string, string> _connectionRoomMap = new Dictionary<string, string>();
+        /// <summary>
+        ///   A random number generator for generating room codes
+        /// </summary>
         private static readonly Random _random = new Random();
+        /// <summary>
+        ///  A lock object for thread safety
+        /// </summary>
         private static readonly object _lock = new object();
 
         public string CreateRoom()
@@ -49,8 +125,10 @@
             if (string.IsNullOrEmpty(code))
                 return false;
 
+
             lock (_lock)
             {
+                // Convert to uppercase for case-insensitive comparison
                 return _activeRooms.ContainsKey(code.ToUpper());
             }
         }
@@ -64,9 +142,11 @@
 
             lock (_lock)
             {
+                // If room does not exist, do nothing
                 if (!_activeRooms.ContainsKey(roomCode))
                     return;
 
+                // Add user to room
                 _activeRooms[roomCode].Add(connectionId);
                 _connectionRoomMap[connectionId] = roomCode;
             }
@@ -100,6 +180,9 @@
 
         public bool IsRoomEmpty(string roomCode)
         {
+            // Checks the hashmap if the room is empty
+            // If the room does not exist, it is considered empty
+            // If the room exists but has no users, it is considered empty
             if (string.IsNullOrEmpty(roomCode))
                 return true;
 
@@ -123,6 +206,7 @@
 
             lock (_lock)
             {
+                // returns 0 if the room does not exist
                 if (!_activeRooms.ContainsKey(roomCode))
                     return 0;
 
@@ -130,16 +214,17 @@
             }
         }
 
-        public string GetUserRoom(string connectionId)
+        public string? GetUserRoom(string connectionId)
         {
             if (string.IsNullOrEmpty(connectionId))
                 return null;
 
             lock (_lock)
             {
-                if (_connectionRoomMap.TryGetValue(connectionId, out string roomCode))
+                // If the connection ID is in the room storage, return the associated room code
+                if (_connectionRoomMap.TryGetValue(connectionId, out string? roomCode))
                     return roomCode;
-
+                // Otherwise, return null
                 return null;
             }
         }
