@@ -1,4 +1,4 @@
-﻿namespace CodeCollaborationWebApp
+﻿namespace CodeCollaborationWebApp.Services
 {
     /// <summary>
     ///     This service manages the creation and tracking of rooms, as well as the association of users with rooms.

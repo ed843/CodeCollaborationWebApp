@@ -1,17 +1,28 @@
 using Microsoft.AspNetCore.Builder;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
-using CodeCollaborationWebApp;
+using Microsoft.Extensions.Caching.StackExchangeRedis;
+using Newtonsoft.Json;
+using CodeCollaborationWebApp.Hubs;
+using CodeCollaborationWebApp.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services for Razor Pages, Controllers, and SignalR
 builder.Services.AddRazorPages();
 builder.Services.AddControllers();
+
+// Initialize Redis Cache
+builder.Services.AddStackExchangeRedisCache(options =>
+{
+    options.Configuration = builder.Configuration.GetConnectionString("RedisConnection");
+    options.InstanceName = "CodeCollaboration_";
+});
+
 builder.Services.AddSignalR();
 
 // Add the RoomService as a singleton
-builder.Services.AddSingleton<IRoomService, RoomService>();
+builder.Services.AddSingleton<IRoomService, RedisRoomService>();
 
 var app = builder.Build();
 

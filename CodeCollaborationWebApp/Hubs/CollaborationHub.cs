@@ -1,4 +1,4 @@
-﻿namespace CodeCollaborationWebApp
+﻿namespace CodeCollaborationWebApp.Hubs
 {
     using Microsoft.AspNetCore.SignalR;
     using System.Threading.Tasks;
@@ -6,6 +6,7 @@
     using Microsoft.AspNetCore.SignalR;
     using System;
     using System.Threading.Tasks;
+    using CodeCollaborationWebApp.Services;
 
     public class CollaborationHub : Hub
     {

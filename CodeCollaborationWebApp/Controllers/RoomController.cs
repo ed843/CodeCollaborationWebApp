@@ -1,9 +1,9 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 
 
-namespace CodeCollaborationWebApp
+namespace CodeCollaborationWebApp.Controllers
 {
-    using CodeCollaborationWebApp;
+    using CodeCollaborationWebApp.Services;
     using Microsoft.AspNetCore.Mvc;
     using System;
     using System.Linq;
