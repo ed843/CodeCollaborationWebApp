@@ -22,7 +22,7 @@ builder.Services.AddStackExchangeRedisCache(options =>
 builder.Services.AddSignalR();
 
 // Add the RoomService as a singleton
-builder.Services.AddSingleton<IRoomService, RedisRoomService>();
+builder.Services.AddSingleton<IRoomService, RoomService>();
 
 var app = builder.Build();
 
