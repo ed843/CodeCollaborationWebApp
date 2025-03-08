@@ -1,4 +1,6 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.Extensions.Logging;
+using System;
 
 
 namespace CodeCollaborationWebApp.Controllers
@@ -17,10 +19,14 @@ namespace CodeCollaborationWebApp.Controllers
         /// </summary>
         private readonly IRoomService _roomService;
 
-        public RoomController(IRoomService roomService)
+        private readonly ILogger<RoomController> _logger;
+
+        public RoomController(IRoomService roomService, ILogger<RoomController> logger)
         {
-            _roomService = roomService;
+            _roomService = roomService ?? throw new ArgumentNullException(nameof(roomService));
+            _logger = logger ?? throw new ArgumentNullException(nameof(logger));
         }
+
 
         /// <summary>
         ///    Verifies if a room exists
@@ -35,14 +41,21 @@ namespace CodeCollaborationWebApp.Controllers
         [HttpGet("verify")]
         public IActionResult VerifyRoom([FromQuery] string code)
         {
-            if (string.IsNullOrEmpty(code) || code.Length != 5)
+            try
             {
-                return BadRequest(new { exists = false, message = "Invalid room code format" });
+                if (string.IsNullOrEmpty(code) || code.Length != 5)
+                {
+                    return BadRequest(new { exists = false, message = "Invalid room code format" });
+                }
+
+                bool roomExists = _roomService.RoomExists(code);
+                return Ok(new { exists = roomExists });
             }
-
-            bool roomExists = _roomService.RoomExists(code);
-
-            return Ok(new { exists = roomExists });
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error verifying room with code: {code}", code);
+                return StatusCode(500, new { error = "An error occurred while verifying the room" });
+            }
         }
 
         /// <summary>
@@ -54,8 +67,17 @@ namespace CodeCollaborationWebApp.Controllers
         [HttpGet("create")]
         public IActionResult CreateRoom()
         {
-            string roomCode = _roomService.CreateRoom();
-            return Ok(new { roomCode });
+            try
+            {
+                string roomCode = _roomService.CreateRoom();
+                _logger.LogInformation("Created new room with code: {roomCode}", roomCode);
+                return Ok(new { roomCode });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error creating room");
+                return StatusCode(500, new { error = "An error occurred while creating the room" });
+            }
         }
     }
 }

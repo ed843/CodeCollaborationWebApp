@@ -3,8 +3,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Caching.StackExchangeRedis;
 using Newtonsoft.Json;
+using Microsoft.Extensions.Logging;
 using CodeCollaborationWebApp.Hubs;
 using CodeCollaborationWebApp.Services;
+using Microsoft.Extensions.Logging.AzureAppServices;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,8 +23,13 @@ builder.Services.AddStackExchangeRedisCache(options =>
 
 builder.Services.AddSignalR();
 
+builder.Logging.ClearProviders();
+builder.Logging.AddConsole();
+builder.Logging.AddDebug();
+builder.Logging.AddAzureWebAppDiagnostics();
+
 // Add the RoomService as a singleton
-builder.Services.AddSingleton<IRoomService, RoomService>();
+builder.Services.AddSingleton<IRoomService, RedisRoomService>();
 
 var app = builder.Build();
 
@@ -34,5 +41,7 @@ app.MapControllers();
 
 // Map the SignalR hub
 app.MapHub<CollaborationHub>("/collaborationHub");
+
+app.UseExceptionHandler("/Error");
 
 app.Run();
