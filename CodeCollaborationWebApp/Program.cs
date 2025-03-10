@@ -7,6 +7,9 @@ using Microsoft.Extensions.Logging;
 using CodeCollaborationWebApp.Hubs;
 using CodeCollaborationWebApp.Services;
 using Microsoft.Extensions.Logging.AzureAppServices;
+using Microsoft.ApplicationInsights.AspNetCore.Extensions;
+using Microsoft.ApplicationInsights.DependencyCollector;
+using Microsoft.ApplicationInsights.Extensibility;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -21,12 +24,25 @@ builder.Services.AddStackExchangeRedisCache(options =>
     options.InstanceName = "CodeCollaboration_";
 });
 
+// Configure TelemetryConfiguration to include more details
+builder.Services.Configure<TelemetryConfiguration>((config) =>
+{
+    config.TelemetryInitializers.Add(new HttpDependenciesParsingTelemetryInitializer());
+});
+
+builder.Logging.AddApplicationInsights(
+    configureTelemetryConfiguration: (config) =>
+        config.ConnectionString = builder.Configuration["ApplicationInsights:ConnectionString"],
+    configureApplicationInsightsLoggerOptions: (options) => { }
+);
+
 builder.Services.AddSignalR();
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 builder.Logging.AddAzureWebAppDiagnostics();
+builder.Services.AddApplicationInsightsTelemetry();
 
 // Add the RoomService as a singleton
 builder.Services.AddSingleton<IRoomService, RedisRoomService>();
