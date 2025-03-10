@@ -108,30 +108,50 @@ function executeJavaScript(code, outputElement) {
     const originalConsoleInfo = console.info;
 
     let output = "";
+    const MAX_OUTPUT_SIZE = 10000; // Characters
 
     // Override console methods
     console.log = (...args) => {
-        output += args.map(arg =>
+        const logText = args.map(arg =>
             typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
         ).join(' ') + '\n';
+
+        output += logText;
+
+        // Truncate if too large
+        if (output.length > MAX_OUTPUT_SIZE) {
+            output = output.substring(0, MAX_OUTPUT_SIZE) + "\n// Output truncated due to size limits...";
+        }
     };
 
     console.error = (...args) => {
         output += '📛 ERROR: ' + args.map(arg =>
             typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
         ).join(' ') + '\n';
+
+        if (output.length > MAX_OUTPUT_SIZE) {
+            output = output.substring(0, MAX_OUTPUT_SIZE) + "\n// Output truncated due to size limits...";
+        }
     };
 
     console.warn = (...args) => {
         output += '⚠️ WARNING: ' + args.map(arg =>
             typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
         ).join(' ') + '\n';
+
+        if (output.length > MAX_OUTPUT_SIZE) {
+            output = output.substring(0, MAX_OUTPUT_SIZE) + "\n// Output truncated due to size limits...";
+        }
     };
 
     console.info = (...args) => {
         output += 'ℹ️ INFO: ' + args.map(arg =>
             typeof arg === 'object' ? JSON.stringify(arg, null, 2) : String(arg)
         ).join(' ') + '\n';
+
+        if (output.length > MAX_OUTPUT_SIZE) {
+            output = output.substring(0, MAX_OUTPUT_SIZE) + "\n// Output truncated due to size limits...";
+        }
     };
 
     try {
