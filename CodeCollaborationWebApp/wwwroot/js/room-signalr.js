@@ -7,14 +7,6 @@ const connection = new signalR.HubConnectionBuilder()
 // Connection status handling
 const connectionStatus = document.getElementById("connectionStatus");
 
-connection.start().then(() => {
-    connection.invoke("JoinRoom", roomCode);
-    connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span> Connected';
-}).catch(err => {
-    console.error(err.toString());
-    connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Disconnected';
-});
-
 connection.onclose(() => {
     connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Disconnected';
 });
