@@ -10,6 +10,7 @@ using Microsoft.Extensions.Logging.AzureAppServices;
 using Microsoft.ApplicationInsights.AspNetCore.Extensions;
 using Microsoft.ApplicationInsights.DependencyCollector;
 using Microsoft.ApplicationInsights.Extensibility;
+using Microsoft.ApplicationInsights.Profiler.AspNetCore; // Add this using directive
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -43,6 +44,7 @@ builder.Logging.AddConsole();
 builder.Logging.AddDebug();
 builder.Logging.AddAzureWebAppDiagnostics();
 builder.Services.AddApplicationInsightsTelemetry();
+builder.Services.AddServiceProfiler(); 
 
 // Add the RoomService as a singleton
 builder.Services.AddSingleton<IRoomService, RedisRoomService>();
