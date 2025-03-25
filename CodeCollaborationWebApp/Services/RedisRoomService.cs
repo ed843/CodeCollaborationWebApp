@@ -15,6 +15,9 @@ namespace CodeCollaborationWebApp.Services
         private const string RoomPrefix = "room:";
         private const string UserPrefix = "user:";
 
+        private const string ChunkCountPrefix = "room:chunk:count:";
+        private const string ChunkDataPrefix = "room:chunk:data:";
+
         public RedisRoomService(IDistributedCache cache, ILogger<RedisRoomService> logger)
         {
             _cache = cache ?? throw new ArgumentNullException(nameof(cache));
@@ -270,5 +273,51 @@ namespace CodeCollaborationWebApp.Services
                 return null; // Return null if we can't get the room
             }
         }
+
+        // Add these methods to RedisRoomService.cs
+        public void StoreWhiteboardState(string roomCode, string whiteboardState)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(roomCode))
+                    return;
+
+                roomCode = roomCode.ToUpper();
+
+                _cache.SetString(
+                    $"{RoomPrefix}{roomCode}:whiteboard",
+                    whiteboardState,
+                    new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                    }
+                );
+
+                _logger.LogDebug("Stored whiteboard state for room {RoomCode}", roomCode);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error storing whiteboard state for room {RoomCode}", roomCode);
+            }
+        }
+
+        public string GetWhiteboardState(string roomCode)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(roomCode))
+                    return null;
+
+                roomCode = roomCode.ToUpper();
+
+                return _cache.GetString($"{RoomPrefix}{roomCode}:whiteboard");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting whiteboard state for room {RoomCode}", roomCode);
+                return null;
+            }
+        }
+
     }
 }

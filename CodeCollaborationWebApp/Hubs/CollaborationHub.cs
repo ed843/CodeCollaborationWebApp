@@ -38,17 +38,33 @@
             // Send the current user count to the newly joined user
             await Clients.Caller.SendAsync("UpdateUserCount", userCount);
 
+            // Send the current whiteboard state to the newly joined user
+            string whiteboardState = _roomService.GetWhiteboardState(roomCode);
+            if (!string.IsNullOrEmpty(whiteboardState))
+            {
+                await Clients.Caller.SendAsync("InitializeWhiteboard", whiteboardState);
+            }
+
             // Notify everyone else about the new user
             await Clients.OthersInGroup(roomCode).SendAsync("UserJoined", userCount);
         }
+
 
         public async Task SendWhiteboardUpdate(string roomCode, string updateData)
         {
             await Clients.OthersInGroup(roomCode).SendAsync("ReceiveWhiteboardUpdate", updateData);
         }
 
+        public async Task SendWhiteboardState(string roomCode, string whiteboardState)
+        {
+            // Store the current whiteboard state
+            _roomService.StoreWhiteboardState(roomCode, whiteboardState);
+        }
+
         public async Task SendWhiteboardClear(string roomCode)
         {
+            // Clear the stored whiteboard state
+            _roomService.StoreWhiteboardState(roomCode, null);
             await Clients.OthersInGroup(roomCode).SendAsync("ReceiveWhiteboardClear");
         }
 

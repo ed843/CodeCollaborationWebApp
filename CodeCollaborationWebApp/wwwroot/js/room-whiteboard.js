@@ -3,6 +3,19 @@
 const canvas = document.getElementById("whiteboard");
 const context = canvas.getContext('2d', { willReadFrequently: true });
 
+let isDrawingInitialized = false;
+
+
+function captureWhiteboardState() {
+    return canvas.toDataURL('image/png');
+}
+
+function saveWhiteboardState() {
+    if (isDrawingInitialized) {
+        const state = captureWhiteboardState();
+        connection.invoke("SendWhiteboardState", roomCode, state);
+    }
+}
 
 // Set canvas size
 function resizeCanvas() {
@@ -58,6 +71,9 @@ document.getElementById("clearBtn").addEventListener("click", () => {
         context.clearRect(0, 0, canvas.width, canvas.height);
         connection.invoke("SendWhiteboardClear", roomCode);
         connection.invoke("SendCodeUpdate", roomCode, "");
+
+        // Save the cleared state
+        saveWhiteboardState();
     }
 });
 
@@ -137,15 +153,35 @@ function draw(e) {
     });
 
     connection.invoke("SendWhiteboardUpdate", roomCode, updateData);
+    isDrawingInitialized = true; // Mark as initialized when drawing locally
 
     lastX = x;
     lastY = y;
 }
 
 function stopDrawing() {
-    drawing = false;
-    context.beginPath();
+    if (drawing) {
+        drawing = false;
+        context.beginPath();
+
+        // Save whiteboard state after each drawing action
+        saveWhiteboardState();
+    }
 }
+
+
+connection.on("InitializeWhiteboard", (stateData) => {
+    if (!isDrawingInitialized && stateData) {
+        const img = new Image();
+        img.onload = function () {
+            context.drawImage(img, 0, 0);
+            isDrawingInitialized = true;
+        };
+        img.src = stateData;
+    }
+});
+
+
 
 connection.on("ReceiveWhiteboardUpdate", (updateData) => {
     const data = JSON.parse(updateData);
@@ -172,4 +208,5 @@ connection.on("ReceiveWhiteboardUpdate", (updateData) => {
 
 connection.on("ReceiveWhiteboardClear", () => {
     context.clearRect(0, 0, canvas.width, canvas.height);
+    isDrawingInitialized = true; // Mark as initialized even when cleared
 });

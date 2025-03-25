@@ -2,15 +2,28 @@
 
 const connection = new signalR.HubConnectionBuilder()
     .withUrl("/collaborationHub")
+    .configureLogging(signalR.LogLevel.Debug)
     .build();
 
 // Connection status handling
 const connectionStatus = document.getElementById("connectionStatus");
 
-connection.onclose(() => {
+connection.onclose(async (error) => {
+    console.error("Connection closed with error:", error);
     connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Disconnected';
-});
 
+    // Log detailed error information
+    console.error("Connection state:", connection.state);
+    console.error("Error details:", error ? error.toString() : "No error details");
+
+    // Show user-friendly notification
+    const toast = document.getElementById("toast");
+    toast.textContent = "Connection lost. Attempting to reconnect...";
+    toast.classList.remove("hidden");
+
+    // Attempt to reconnect
+    await tryReconnect();
+});
 // Copy room code functionality
 document.getElementById("copyRoomBtn").addEventListener("click", () => {
     navigator.clipboard.writeText(roomCode).then(() => {
@@ -110,3 +123,36 @@ setInterval(async () => {
         console.error("Error checking room status:", error);
     }
 }, 30000);
+
+
+// Function to handle reconnection attempts
+async function tryReconnect(attempt = 1) {
+    console.log(`Attempting to reconnect (attempt ${attempt})...`);
+    try {
+        await connection.start();
+        console.log("Reconnected successfully!");
+
+        // Rejoin the room
+        connection.invoke("JoinRoom", roomCode);
+        connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span> Connected';
+
+        // Show success notification
+        const toast = document.getElementById("toast");
+        toast.textContent = "Reconnected successfully!";
+        setTimeout(() => {
+            toast.classList.add("hidden");
+        }, 3000);
+    } catch (err) {
+        console.error("Reconnection failed:", err);
+
+        // Exponential backoff for retry (max 30 seconds)
+        const delay = Math.min(1000 * Math.pow(1.5, attempt), 30000);
+        console.log(`Retrying in ${delay / 1000} seconds...`);
+
+        // Update status
+        connectionStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Reconnecting in ${Math.round(delay / 1000)}s`;
+
+        // Try again after delay with incremented attempt count
+        setTimeout(() => tryReconnect(attempt + 1), delay);
+    }
+}
