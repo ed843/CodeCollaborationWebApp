@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace CodeCollaborationWebApp.Services
@@ -14,6 +15,9 @@ namespace CodeCollaborationWebApp.Services
         private readonly Random _random = new Random();
         private const string RoomPrefix = "room:";
         private const string UserPrefix = "user:";
+
+        private const string ChunkCountPrefix = "room:chunk:count:";
+        private const string ChunkDataPrefix = "room:chunk:data:";
 
         public RedisRoomService(IDistributedCache cache, ILogger<RedisRoomService> logger)
         {
@@ -270,5 +274,69 @@ namespace CodeCollaborationWebApp.Services
                 return null; // Return null if we can't get the room
             }
         }
+
+        // Add these methods to RedisRoomService.cs
+        public void StoreWhiteboardState(string roomCode, string whiteboardState)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(roomCode))
+                    return;
+
+                roomCode = roomCode.ToUpper();
+
+                // First, check if the room exists
+                if (!RoomExists(roomCode))
+                    return;
+
+                if (whiteboardState == null)
+                {
+                    _cache.Remove($"{RoomPrefix}{roomCode}:whiteboard");
+                    return;
+                }
+
+                _cache.Set(
+                    $"{RoomPrefix}{roomCode}:whiteboard",
+                    Encoding.UTF8.GetBytes(whiteboardState),
+                    new DistributedCacheEntryOptions
+                    {
+                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                    }
+                );
+
+                _logger.LogDebug("Stored whiteboard state for room {RoomCode}", roomCode);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error storing whiteboard state for room {RoomCode}", roomCode);
+            }
+        }
+
+
+        public string GetWhiteboardState(string roomCode)
+        {
+            try
+            {
+                if (string.IsNullOrEmpty(roomCode))
+                    return null;
+
+                roomCode = roomCode.ToUpper();
+
+                // Check if the room exists
+                if (!RoomExists(roomCode))
+                    return null;
+
+                byte[] stateBytes = _cache.Get($"{RoomPrefix}{roomCode}:whiteboard");
+                return stateBytes != null ? Encoding.UTF8.GetString(stateBytes) : null;
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error getting whiteboard state for room {RoomCode}", roomCode);
+                return null;
+            }
+        }
+
+
+
     }
 }

@@ -1,68 +1,100 @@
 ﻿"use strict";
 
+// Constants and DOM elements
+const connectionStatus = document.getElementById("connectionStatus");
+const toast = document.getElementById("toast");
+const copyRoomBtn = document.getElementById("copyRoomBtn");
+const RECONNECT_INTERVAL = 30000; // 30 seconds
+
+// SignalR connection setup
 const connection = new signalR.HubConnectionBuilder()
     .withUrl("/collaborationHub")
+    .configureLogging(signalR.LogLevel.Debug)
     .build();
 
-// Connection status handling
-const connectionStatus = document.getElementById("connectionStatus");
-
-connection.onclose(() => {
-    connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Disconnected';
-});
-
-// Copy room code functionality
-document.getElementById("copyRoomBtn").addEventListener("click", () => {
-    navigator.clipboard.writeText(roomCode).then(() => {
-        const toast = document.getElementById("toast");
-        toast.classList.remove("hidden");
-        setTimeout(() => {
-            toast.classList.add("hidden");
-        }, 2000);
-    });
-});
-
+// State variables
 let userCount = 0;
 
-// Handle window/tab close events
-window.addEventListener('beforeunload', () => {
-    // This will trigger the OnDisconnectedAsync in the hub
-    connection.stop();
+// Helper functions
+function showToast(message, duration = 2000) {
+    toast.textContent = message;
+    toast.classList.remove("hidden");
+    setTimeout(() => toast.classList.add("hidden"), duration);
+}
+
+function updateConnectionStatus(status, color) {
+    connectionStatus.innerHTML = `<span class="w-2 h-2 rounded-full bg-${color}-500 mr-2"></span> ${status}`;
+}
+
+function updateUserCounter() {
+    const userText = userCount === 1 ? 'user' : 'users';
+    connectionStatus.innerHTML = `
+        <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
+        Connected <span class="ml-2 bg-gray-100 px-2 py-1 rounded-full text-xs font-medium">${userCount} ${userText}</span>
+    `;
+}
+
+// Connection handling
+async function initializeConnection() {
+    try {
+        await connection.start();
+        connection.invoke("JoinRoom", roomCode);
+        updateConnectionStatus("Connecting...", "green");
+    } catch (err) {
+        console.error("Connection failed:", err.toString());
+        updateConnectionStatus("Disconnected", "red");
+    }
+}
+
+async function tryReconnect(attempt = 1) {
+    console.log(`Attempting to reconnect (attempt ${attempt})...`);
+    try {
+        await connection.start();
+        console.log("Reconnected successfully!");
+        connection.invoke("JoinRoom", roomCode);
+        updateConnectionStatus("Connected", "green");
+        showToast("Reconnected successfully!", 3000);
+    } catch (err) {
+        console.error("Reconnection failed:", err);
+        const delay = Math.min(1000 * Math.pow(1.5, attempt), 30000);
+        console.log(`Retrying in ${delay / 1000} seconds...`);
+        updateConnectionStatus(`Reconnecting in ${Math.round(delay / 1000)}s`, "red");
+        setTimeout(() => tryReconnect(attempt + 1), delay);
+    }
+}
+
+// Event listeners
+copyRoomBtn.addEventListener("click", () => {
+    navigator.clipboard.writeText(roomCode).then(() => showToast("Room code copied!"));
 });
 
-// Add these connection handlers
+window.addEventListener('beforeunload', () => connection.stop());
+
+// SignalR event handlers
+connection.onclose(async (error) => {
+    console.error("Connection closed with error:", error);
+    updateConnectionStatus("Disconnected", "red");
+    console.error("Connection state:", connection.state);
+    console.error("Error details:", error ? error.toString() : "No error details");
+    showToast("Connection lost. Attempting to reconnect...");
+    await tryReconnect();
+});
+
 connection.on("UpdateUserCount", (count) => {
-    // Called when a user first joins to set the initial count
     userCount = count;
     updateUserCounter();
 });
 
 connection.on("UserJoined", (count) => {
-    // Called when another user joins
     userCount = count;
     updateUserCounter();
-
-    // Show notification
-    const toast = document.getElementById("toast");
-    toast.textContent = "Another user joined the room";
-    toast.classList.remove("hidden");
-    setTimeout(() => {
-        toast.classList.add("hidden");
-    }, 2000);
+    showToast("Another user joined the room");
 });
 
 connection.on("UserLeft", (count) => {
-    // Called when a user leaves
     userCount = count;
     updateUserCounter();
-
-    // Show notification
-    const toast = document.getElementById("toast");
-    toast.textContent = "A user left the room";
-    toast.classList.remove("hidden");
-    setTimeout(() => {
-        toast.classList.add("hidden");
-    }, 2000);
+    showToast("A user left the room");
 });
 
 connection.on("RoomNotFound", () => {
@@ -70,38 +102,17 @@ connection.on("RoomNotFound", () => {
     window.location.href = "/";
 });
 
-// Update the user counter display
-function updateUserCounter() {
-    const statusEl = document.getElementById("connectionStatus");
-    statusEl.innerHTML = `
-                <span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span>
-                Connected <span class="ml-2 bg-gray-100 px-2 py-1 rounded-full text-xs font-medium">${userCount} ${userCount === 1 ? 'user' : 'users'}</span>
-            `;
-}
-
-// Initialize the connection
-connection.start().then(() => {
-    connection.invoke("JoinRoom", roomCode);
-    connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-green-500 mr-2"></span> Connecting...';
-}).catch(err => {
-    console.error(err.toString());
-    connectionStatus.innerHTML = '<span class="w-2 h-2 rounded-full bg-red-500 mr-2"></span> Disconnected';
-});
-
-
 connection.on("RoomTerminated", () => {
     alert("This room has been terminated. You will be redirected to the home page.");
     window.location.href = "/";
 });
 
-// Periodically check if room still exists (optional, as a backup)
-setInterval(async () => {
+// Room verification
+async function verifyRoom() {
     if (connection.state !== "Connected") return;
-
     try {
         const response = await fetch(`/api/room/verify?code=${roomCode}`);
         const data = await response.json();
-
         if (!data.exists) {
             alert("This room no longer exists. You will be redirected to the home page.");
             window.location.href = "/";
@@ -109,4 +120,8 @@ setInterval(async () => {
     } catch (error) {
         console.error("Error checking room status:", error);
     }
-}, 30000);
+}
+
+// Initialization
+initializeConnection();
+setInterval(verifyRoom, RECONNECT_INTERVAL);

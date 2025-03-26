@@ -75,6 +75,10 @@
         ///     The room code that the user is in, or <c>null</c> if the user is not in a room
         /// </returns>
         string? GetUserRoom(string connectionId);
+
+        void StoreWhiteboardState(string roomCode, string whiteboardState);
+        string GetWhiteboardState(string roomCode);
+
     }
 
     public class RoomService : IRoomService
@@ -87,6 +91,10 @@
         ///   A dictionary mapping connection IDs to room codes
         /// </summary>
         private static readonly Dictionary<string, string> _connectionRoomMap = new Dictionary<string, string>();
+        /// <summary>
+        ///   A dictionary storing whiteboard states for each room
+        /// </summary>
+        private static readonly Dictionary<string, string> _whiteboardStates = new Dictionary<string, string>();
         /// <summary>
         ///   A random number generator for generating room codes
         /// </summary>
@@ -169,14 +177,21 @@
                 {
                     _activeRooms[roomCode].Remove(connectionId);
 
-                    // If room is empty, remove it
+                    // If room is empty, remove it and its whiteboard state
                     if (_activeRooms[roomCode].Count == 0)
                     {
                         _activeRooms.Remove(roomCode);
+
+                        // Also remove the whiteboard state
+                        if (_whiteboardStates.ContainsKey(roomCode))
+                        {
+                            _whiteboardStates.Remove(roomCode);
+                        }
                     }
                 }
             }
         }
+
 
         public bool IsRoomEmpty(string roomCode)
         {
@@ -228,5 +243,52 @@
                 return null;
             }
         }
+
+        public void StoreWhiteboardState(string roomCode, string whiteboardState)
+        {
+            if (string.IsNullOrEmpty(roomCode))
+                return;
+
+            roomCode = roomCode.ToUpper();
+
+            lock (_lock)
+            {
+                // If room does not exist, do nothing
+                if (!_activeRooms.ContainsKey(roomCode))
+                    return;
+
+                // If whiteboardState is null, remove the state if it exists
+                if (whiteboardState == null)
+                {
+                    if (_whiteboardStates.ContainsKey(roomCode))
+                    {
+                        _whiteboardStates.Remove(roomCode);
+                    }
+                    return;
+                }
+
+                // Store or update the whiteboard state
+                _whiteboardStates[roomCode] = whiteboardState;
+            }
+        }
+
+        public string GetWhiteboardState(string roomCode)
+        {
+            if (string.IsNullOrEmpty(roomCode))
+                return null;
+
+            roomCode = roomCode.ToUpper();
+
+            lock (_lock)
+            {
+                // Return the whiteboard state if it exists, otherwise null
+                if (_whiteboardStates.TryGetValue(roomCode, out string state))
+                    return state;
+                return null;
+            }
+        }
+
+
+
     }
 }

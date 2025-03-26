@@ -5,7 +5,14 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <UserSecretsId>4895f0da-3e82-4dd8-8bab-a1c76879e414</UserSecretsId>
+	<JavaScriptTestRoot>tests\</JavaScriptTestRoot>
+	<JavaScriptTestFramework>Jest</JavaScriptTestFramework>
+	<GenerateProgramFile>false</GenerateProgramFile>
   </PropertyGroup>
+
+  <ItemGroup>
+    <Content Include=".vs\VSWorkspaceSettings.json" />
+  </ItemGroup>
 
   <ItemGroup>
     <PackageReference Include="Microsoft.ApplicationInsights" Version="2.23.0" />
@@ -13,12 +20,18 @@
     <PackageReference Include="Microsoft.ApplicationInsights.Profiler.AspNetCore" Version="2.7.3" />
     <PackageReference Include="Microsoft.Extensions.Caching.Redis" Version="2.3.0" />
     <PackageReference Include="Microsoft.Extensions.Caching.StackExchangeRedis" Version="9.0.2" />
-    <PackageReference Include="Microsoft.Extensions.Logging.AzureAppServices" Version="9.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Logging.AzureAppServices" Version="9.0.3" />
+    <PackageReference Include="Microsoft.JavaScript.UnitTest" Version="1.5.10610.1">
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+      <PrivateAssets>all</PrivateAssets>
+    </PackageReference>
+    <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Folder Include="tests\" />
+    <PackageReference Include="Npm" Version="3.5.2" />
+	  <ExcludeFromPackageFolders Include="node_modules">
+    <FromTarget>Project</FromTarget>
+  </ExcludeFromPackageFolders>
+	
   </ItemGroup>
 
 </Project>

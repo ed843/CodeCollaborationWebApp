@@ -37,7 +37,16 @@ builder.Logging.AddApplicationInsights(
     configureApplicationInsightsLoggerOptions: (options) => { }
 );
 
-builder.Services.AddSignalR();
+builder.Services.AddSignalR(options =>
+{
+    options.MaximumReceiveMessageSize = 10 * 1024 * 1024; // 10MB
+    options.StreamBufferCapacity = 20; // Increase buffer for streaming operations
+
+    options.EnableDetailedErrors = true;
+});
+builder.Logging.AddFilter("Microsoft.AspNetCore.SignalR", LogLevel.Debug);
+builder.Logging.AddFilter("Microsoft.AspNetCore.Http.Connections", LogLevel.Debug);
+
 
 builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
