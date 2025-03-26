@@ -1,212 +1,218 @@
 ﻿"use strict";
 
-const canvas = document.getElementById("whiteboard");
-const context = canvas.getContext('2d', { willReadFrequently: true });
+export class Whiteboard {
+    constructor(canvasId, connection, roomCode) {
+        this.canvas = document.getElementById(canvasId);
+        this.context = this.canvas.getContext('2d', { willReadFrequently: true });
+        this.connection = connection;
+        this.roomCode = roomCode;
 
-let isDrawingInitialized = false;
+        this.isDrawingInitialized = false;
+        this.drawing = false;
+        this.lastX = 0;
+        this.lastY = 0;
+        this.currentTool = "pen";
 
-
-function captureWhiteboardState() {
-    return canvas.toDataURL('image/png');
-}
-
-function saveWhiteboardState() {
-    if (isDrawingInitialized) {
-        const state = captureWhiteboardState();
-        connection.invoke("SendWhiteboardState", roomCode, state);
+        this.initializeEventListeners();
+        this.initializeSignalRHandlers();
+        this.resizeCanvas();
     }
-}
 
-// Set canvas size
-function resizeCanvas() {
-    const rect = canvas.parentElement.getBoundingClientRect();
+    initializeEventListeners() {
+        window.addEventListener("resize", () => this.resizeCanvas());
 
-    // Store the current drawing if any
-    const imageData = context.getImageData(0, 0, canvas.width, canvas.height);
+        document.getElementById("penTool").addEventListener("click", () => this.setTool("pen"));
+        document.getElementById("eraserTool").addEventListener("click", () => this.setTool("eraser"));
+        document.getElementById("colorPicker").addEventListener("input", (e) => {
+            this.context.strokeStyle = e.target.value;
+        });
+        document.getElementById("clearBtn").addEventListener("click", () => this.clearWhiteboard());
 
-    canvas.width = rect.width;
-    canvas.height = rect.height;
+        this.canvas.addEventListener("mousedown", (e) => this.startDrawing(e));
+        this.canvas.addEventListener("mouseup", () => this.stopDrawing());
+        this.canvas.addEventListener("mouseleave", () => this.stopDrawing());
+        this.canvas.addEventListener("mousemove", (e) => this.draw(e));
 
-    // Restore drawing settings
-    context.lineJoin = "round";
-    context.lineCap = "round";
-    context.lineWidth = 2;
-
-    // Restore the previous drawing if there was one
-    if (imageData.width > 0) {
-        context.putImageData(imageData, 0, 0);
+        this.canvas.addEventListener("touchstart", (e) => this.handleTouchStart(e));
+        this.canvas.addEventListener("touchend", (e) => this.handleTouchEnd(e));
+        this.canvas.addEventListener("touchmove", (e) => this.handleTouchMove(e));
     }
-}
 
-window.addEventListener("resize", resizeCanvas);
-resizeCanvas();
-
-let drawing = false;
-let lastX = 0;
-let lastY = 0;
-let currentTool = "pen";
-
-// Tool selection
-document.getElementById("penTool").addEventListener("click", () => {
-    currentTool = "pen";
-    document.getElementById("penTool").classList.add("active-tool");
-    document.getElementById("eraserTool").classList.remove("active-tool");
-    context.globalCompositeOperation = "source-over";
-});
-
-document.getElementById("eraserTool").addEventListener("click", () => {
-    currentTool = "eraser";
-    document.getElementById("eraserTool").classList.add("active-tool");
-    document.getElementById("penTool").classList.remove("active-tool");
-    context.globalCompositeOperation = "destination-out";
-});
-
-document.getElementById("colorPicker").addEventListener("input", (e) => {
-    context.strokeStyle = e.target.value;
-});
-
-// Clear whiteboard
-document.getElementById("clearBtn").addEventListener("click", () => {
-    if (confirm("Are you sure you want to clear everything?")) {
-        context.clearRect(0, 0, canvas.width, canvas.height);
-        connection.invoke("SendWhiteboardClear", roomCode);
-        connection.invoke("SendCodeUpdate", roomCode, "");
-
-        // Save the cleared state
-        saveWhiteboardState();
+    initializeSignalRHandlers() {
+        this.connection.on("InitializeWhiteboard", (stateData) => this.initializeWhiteboard(stateData));
+        this.connection.on("ReceiveWhiteboardUpdate", (updateData) => this.receiveWhiteboardUpdate(updateData));
+        this.connection.on("ReceiveWhiteboardClear", () => this.receiveWhiteboardClear());
     }
-});
 
-// Drawing events
-canvas.addEventListener("mousedown", startDrawing);
-canvas.addEventListener("touchstart", (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent("mousedown", {
-        clientX: touch.clientX,
-        clientY: touch.clientY
-    });
-    canvas.dispatchEvent(mouseEvent);
-});
+    resizeCanvas() {
+        const rect = this.canvas.parentElement.getBoundingClientRect();
+        const imageData = this.context.getImageData(0, 0, this.canvas.width, this.canvas.height);
 
-canvas.addEventListener("mouseup", stopDrawing);
-canvas.addEventListener("touchend", (e) => {
-    e.preventDefault();
-    const mouseEvent = new MouseEvent("mouseup", {});
-    canvas.dispatchEvent(mouseEvent);
-});
+        this.canvas.width = rect.width;
+        this.canvas.height = rect.height;
 
-canvas.addEventListener("mouseleave", stopDrawing);
+        this.restoreDrawingSettings();
 
-canvas.addEventListener("mousemove", draw);
-canvas.addEventListener("touchmove", (e) => {
-    e.preventDefault();
-    const touch = e.touches[0];
-    const mouseEvent = new MouseEvent("mousemove", {
-        clientX: touch.clientX,
-        clientY: touch.clientY
-    });
-    canvas.dispatchEvent(mouseEvent);
-});
-
-function getCanvasCoordinates(e) {
-    const rect = canvas.getBoundingClientRect();
-    // Calculate the scale factor between the CSS size and actual canvas pixels
-    const scaleX = canvas.width / rect.width;
-    const scaleY = canvas.height / rect.height;
-
-    // Get precise pointer position
-    return {
-        x: (e.clientX - rect.left) * scaleX,
-        y: (e.clientY - rect.top) * scaleY
-    };
-}
-
-function startDrawing(e) {
-    drawing = true;
-    const pos = getCanvasCoordinates(e);
-    lastX = pos.x;
-    lastY = pos.y;
-
-    // Start a new path and move to the position
-    context.beginPath();
-    context.moveTo(lastX, lastY);
-}
-
-function draw(e) {
-    if (!drawing) return;
-
-    const pos = getCanvasCoordinates(e);
-    const x = pos.x;
-    const y = pos.y;
-
-    context.lineTo(x, y);
-    context.stroke();
-
-    const updateData = JSON.stringify({
-        x1: lastX,
-        y1: lastY,
-        x2: x,
-        y2: y,
-        color: context.strokeStyle,
-        tool: currentTool
-    });
-
-    connection.invoke("SendWhiteboardUpdate", roomCode, updateData);
-    isDrawingInitialized = true; // Mark as initialized when drawing locally
-
-    lastX = x;
-    lastY = y;
-}
-
-function stopDrawing() {
-    if (drawing) {
-        drawing = false;
-        context.beginPath();
-
-        // Save whiteboard state after each drawing action
-        saveWhiteboardState();
+        if (imageData.width > 0) {
+            this.context.putImageData(imageData, 0, 0);
+        }
     }
-}
 
+    restoreDrawingSettings() {
+        this.context.lineJoin = "round";
+        this.context.lineCap = "round";
+        this.context.lineWidth = 2;
+    }
 
-connection.on("InitializeWhiteboard", (stateData) => {
-    if (!isDrawingInitialized && stateData) {
-        const img = new Image();
-        img.onload = function () {
-            context.drawImage(img, 0, 0);
-            isDrawingInitialized = true;
+    captureWhiteboardState() {
+        return this.canvas.toDataURL('image/png');
+    }
+
+    saveWhiteboardState() {
+        if (this.isDrawingInitialized) {
+            const state = this.captureWhiteboardState();
+            this.connection.invoke("SendWhiteboardState", this.roomCode, state);
+        }
+    }
+
+    getCanvasCoordinates(e) {
+        const rect = this.canvas.getBoundingClientRect();
+        const scaleX = this.canvas.width / rect.width;
+        const scaleY = this.canvas.height / rect.height;
+
+        return {
+            x: (e.clientX - rect.left) * scaleX,
+            y: (e.clientY - rect.top) * scaleY
         };
-        img.src = stateData;
-    }
-});
-
-
-
-connection.on("ReceiveWhiteboardUpdate", (updateData) => {
-    const data = JSON.parse(updateData);
-
-    const originalOperation = context.globalCompositeOperation;
-    const originalColor = context.strokeStyle;
-
-    if (data.tool === "eraser") {
-        context.globalCompositeOperation = "destination-out";
-    } else {
-        context.globalCompositeOperation = "source-over";
-        context.strokeStyle = data.color;
     }
 
-    context.beginPath();
-    context.moveTo(data.x1, data.y1);
-    context.lineTo(data.x2, data.y2);
-    context.stroke();
+    startDrawing(e) {
+        this.drawing = true;
+        const pos = this.getCanvasCoordinates(e);
+        this.lastX = pos.x;
+        this.lastY = pos.y;
 
-    context.globalCompositeOperation = originalOperation;
-    context.strokeStyle = originalColor;
-    context.beginPath();
-});
+        this.context.beginPath();
+        this.context.moveTo(this.lastX, this.lastY);
+    }
 
-connection.on("ReceiveWhiteboardClear", () => {
-    context.clearRect(0, 0, canvas.width, canvas.height);
-    isDrawingInitialized = true; // Mark as initialized even when cleared
-});
+    draw(e) {
+        if (!this.drawing) return;
+
+        const pos = this.getCanvasCoordinates(e);
+        const x = pos.x;
+        const y = pos.y;
+
+        this.context.lineTo(x, y);
+        this.context.stroke();
+
+        this.sendDrawingUpdate(x, y);
+
+        this.lastX = x;
+        this.lastY = y;
+    }
+
+    stopDrawing() {
+        if (this.drawing) {
+            this.drawing = false;
+            this.context.beginPath();
+            this.saveWhiteboardState();
+        }
+    }
+
+    sendDrawingUpdate(x, y) {
+        const updateData = JSON.stringify({
+            x1: this.lastX,
+            y1: this.lastY,
+            x2: x,
+            y2: y,
+            color: this.context.strokeStyle,
+            tool: this.currentTool
+        });
+
+        this.connection.invoke("SendWhiteboardUpdate", this.roomCode, updateData);
+        this.isDrawingInitialized = true;
+    }
+
+    setTool(tool) {
+        this.currentTool = tool;
+        document.getElementById(`${tool}Tool`).classList.add("active-tool");
+        document.getElementById(`${tool === "pen" ? "eraser" : "pen"}Tool`).classList.remove("active-tool");
+        this.context.globalCompositeOperation = tool === "pen" ? "source-over" : "destination-out";
+    }
+
+    clearWhiteboard() {
+        if (confirm("Are you sure you want to clear everything?")) {
+            this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+            this.connection.invoke("SendWhiteboardClear", this.roomCode);
+            this.connection.invoke("SendCodeUpdate", this.roomCode, "");
+            this.saveWhiteboardState();
+        }
+    }
+
+    handleTouchStart(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent("mousedown", {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        this.canvas.dispatchEvent(mouseEvent);
+    }
+
+    handleTouchEnd(e) {
+        e.preventDefault();
+        const mouseEvent = new MouseEvent("mouseup", {});
+        this.canvas.dispatchEvent(mouseEvent);
+    }
+
+    handleTouchMove(e) {
+        e.preventDefault();
+        const touch = e.touches[0];
+        const mouseEvent = new MouseEvent("mousemove", {
+            clientX: touch.clientX,
+            clientY: touch.clientY
+        });
+        this.canvas.dispatchEvent(mouseEvent);
+    }
+
+    initializeWhiteboard(stateData) {
+        if (!this.isDrawingInitialized && stateData) {
+            const img = new Image();
+            img.onload = () => {
+                this.context.drawImage(img, 0, 0);
+                this.isDrawingInitialized = true;
+            };
+            img.src = stateData;
+        }
+    }
+
+    receiveWhiteboardUpdate(updateData) {
+        const data = JSON.parse(updateData);
+
+        const originalOperation = this.context.globalCompositeOperation;
+        const originalColor = this.context.strokeStyle;
+
+        this.context.globalCompositeOperation = data.tool === "eraser" ? "destination-out" : "source-over";
+        this.context.strokeStyle = data.color;
+
+        this.context.beginPath();
+        this.context.moveTo(data.x1, data.y1);
+        this.context.lineTo(data.x2, data.y2);
+        this.context.stroke();
+
+        this.context.globalCompositeOperation = originalOperation;
+        this.context.strokeStyle = originalColor;
+        this.context.beginPath();
+    }
+
+    receiveWhiteboardClear() {
+        this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+        this.isDrawingInitialized = true;
+    }
+}
+
+// Only create the instance if not in a test environment
+if (typeof connection !== 'undefined' && typeof roomCode !== 'undefined') {
+    const whiteboard = new Whiteboard("whiteboard", connection, roomCode);
+}

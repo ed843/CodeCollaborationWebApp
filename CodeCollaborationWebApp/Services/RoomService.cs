@@ -177,14 +177,21 @@
                 {
                     _activeRooms[roomCode].Remove(connectionId);
 
-                    // If room is empty, remove it
+                    // If room is empty, remove it and its whiteboard state
                     if (_activeRooms[roomCode].Count == 0)
                     {
                         _activeRooms.Remove(roomCode);
+
+                        // Also remove the whiteboard state
+                        if (_whiteboardStates.ContainsKey(roomCode))
+                        {
+                            _whiteboardStates.Remove(roomCode);
+                        }
                     }
                 }
             }
         }
+
 
         public bool IsRoomEmpty(string roomCode)
         {

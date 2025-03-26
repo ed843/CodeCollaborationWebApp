@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
+using System.Text;
 using System.Threading.Tasks;
 
 namespace CodeCollaborationWebApp.Services
@@ -284,9 +285,19 @@ namespace CodeCollaborationWebApp.Services
 
                 roomCode = roomCode.ToUpper();
 
-                _cache.SetString(
+                // First, check if the room exists
+                if (!RoomExists(roomCode))
+                    return;
+
+                if (whiteboardState == null)
+                {
+                    _cache.Remove($"{RoomPrefix}{roomCode}:whiteboard");
+                    return;
+                }
+
+                _cache.Set(
                     $"{RoomPrefix}{roomCode}:whiteboard",
-                    whiteboardState,
+                    Encoding.UTF8.GetBytes(whiteboardState),
                     new DistributedCacheEntryOptions
                     {
                         AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
@@ -301,6 +312,7 @@ namespace CodeCollaborationWebApp.Services
             }
         }
 
+
         public string GetWhiteboardState(string roomCode)
         {
             try
@@ -310,7 +322,12 @@ namespace CodeCollaborationWebApp.Services
 
                 roomCode = roomCode.ToUpper();
 
-                return _cache.GetString($"{RoomPrefix}{roomCode}:whiteboard");
+                // Check if the room exists
+                if (!RoomExists(roomCode))
+                    return null;
+
+                byte[] stateBytes = _cache.Get($"{RoomPrefix}{roomCode}:whiteboard");
+                return stateBytes != null ? Encoding.UTF8.GetString(stateBytes) : null;
             }
             catch (Exception ex)
             {
@@ -318,6 +335,8 @@ namespace CodeCollaborationWebApp.Services
                 return null;
             }
         }
+
+
 
     }
 }

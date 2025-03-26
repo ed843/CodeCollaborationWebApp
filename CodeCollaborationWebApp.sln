@@ -1,9 +1,11 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
-VisualStudioVersion = 17.13.35818.85 d17.13
+VisualStudioVersion = 17.13.35818.85
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeCollaborationWebApp", "CodeCollaborationWebApp\CodeCollaborationWebApp.csproj", "{5759C7D1-F635-471B-9429-E6A6FF7013BE}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "CodeCollaborationWebApp.Tests", "CodeCollaborationWebApp.Tests\CodeCollaborationWebApp.Tests.csproj", "{F72551B8-A4A0-A228-649C-114E6B358C12}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -15,6 +17,10 @@ Global
 		{5759C7D1-F635-471B-9429-E6A6FF7013BE}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{5759C7D1-F635-471B-9429-E6A6FF7013BE}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{5759C7D1-F635-471B-9429-E6A6FF7013BE}.Release|Any CPU.Build.0 = Release|Any CPU
+		{F72551B8-A4A0-A228-649C-114E6B358C12}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{F72551B8-A4A0-A228-649C-114E6B358C12}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{F72551B8-A4A0-A228-649C-114E6B358C12}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{F72551B8-A4A0-A228-649C-114E6B358C12}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
