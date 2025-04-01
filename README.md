@@ -6,7 +6,7 @@ A real-time collaborative coding platform built with ASP.NET Core and SignalR, d
 
 ## Live Demo
 
-Try the application live at: [https://codecollaboration-d3b7ggdpdkgwbrf6.canadacentral-01.azurewebsites.net](https://codecollaboration-d3b7ggdpdkgwbrf6.canadacentral-01.azurewebsites.net)
+The site was taken down temporarily due to the costs to keep it up. Sorry for the inconvenience.
 
 ## Features
 
